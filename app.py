@@ -25,7 +25,7 @@ def main():
     job_id = get_job_id(cur, conn_key_database)
 
     # FILM - TMDB
-    tmdb_api_key = common.get_keys('key_api_film_tmdb')
+    tmdb_api_key = get_connection_keys('key_api_film_tmdb')
     tmdb_table = '.'.join([conn_key_database, conn_key_schema, 'REQUEST'])
     tmdb = film.TMDB(tmdb_api_key, tmdb_table, job_id)
     tmdb.extract_load_upcoming(cur)
