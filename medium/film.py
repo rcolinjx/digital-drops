@@ -1,50 +1,48 @@
-import common
-import datetime
-import json
 import requests
 
 
-# class Movie(object):
-# 	id = ''
-# 	title = ''
-# 	release_date = ''
-#
-# 	def __init__(self, id, title, release_date):
-# 		self.id = id
-# 		self.title = title
-# 		self.release_date = release_date
-
-
 class TMDB:
-	api_key = 'key_api_film_tmdb'
-	table = 'DEV_STAGING_TRANSIENT.API.FILM_TMDB'
+    api_key = ''
+    table = ''
+    job_id = ''
 
-	def extract_load_upcoming(self, cur):
-		path = '/movie/upcoming'
-		params = ['language=EN', 'region=US']
-		url = 'https://api.themoviedb.org/3' + path + '?' + '&'.join(params) + '&api_key=' + self.api_key
+    def extract_load_upcoming(self, cur):
+        try:
+            path = '/movie/upcoming'
+            params = ['language=EN', 'region=US']
+            url = 'https://api.themoviedb.org/3' + path + '?' + '&'.join(params)
+            page_cur = 1
 
-		req = requests.get(url)
+            res_json = self.get_response(url, page_cur, cur)
 
-		res = req.text
+            page_max = int(res_json['total_pages'])
 
-		cur.execute('INSERT INTO {0}(JSON) SELECT PARSE_JSON($${1}$$)'.format(self.table, res))
+            if page_max > 1:
+                while page_cur <= page_max:
+                    page_cur += 1
+                    self.get_response(url, page_cur, cur)
 
-		'''TODO: find the pages'''
+        except Exception as ex:
+            print('Exception: ' + str(ex))
 
-		# payload_list = res_dict['results']
-		#
-		# movie_list = []
-		#
-		# for movie_dict in payload_list:
-		# 	id = movie_dict['id']
-		# 	title = movie_dict['title']
-		# 	release_date = datetime.datetime.strptime(movie_dict['release_date'], '%Y-%m-%d')
-		#
-		# 	movie_obj = Movie(id, title, release_date)
-		#
-		# 	movie_list.append(movie_obj)
-		#
-		# movie_list = list(set(movie_list))
-		#
-		# return movie_list
+    def get_response(self, url, page, cur):
+        req_sec = url + '&page=' + str(page) + '&api_key='
+
+        req = requests.get(req_sec + self.api_key)
+
+        res_json = req.json()
+
+        if not res_json['results']:
+            raise Exception(res_json['status_message'])
+
+        sql = '''INSERT INTO {0}(REQUEST_ENDPOINT, REQUEST_RESPONSE, META_PAGE_NUMBER, META_JOB_SUMMARY_SK)
+              SELECT '{1}', PARSE_JSON($${2}$$), {3}, {4};'''.format(self.table, req_sec, req.text, page, self.job_id)
+
+        cur.execute(sql)
+
+        return res_json
+
+    def __init__(self, api_key, table, job_id):
+        self.api_key = api_key
+        self.table = table
+        self.job_id = job_id
