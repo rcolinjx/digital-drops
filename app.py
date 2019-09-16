@@ -1,9 +1,9 @@
 from medium import film, game, song
-import warehouse
+import database
 
 
 def main():
-    conn = warehouse.SnowflakeConnection('database_connection')
+    conn = database.SnowflakeConnection('database_connection')
 
     # FILM - TMDB
     tmdb = film.TMDB(conn)
