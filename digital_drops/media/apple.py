@@ -1,49 +1,37 @@
 import requests
 
+from digital_drops.media.media import MediaProvider
 
-class Apple:
-    name = 'APPLE'
-    type = 'ALBUM'
-    conn = None
-    table_stage = None
-    table_model = None
 
-    def extract_load_upcoming(self):
-        url = 'https://rss.itunes.apple.com/api/v1/us/apple-music/coming-soon/all/100/explicit.json'
+class Apple(MediaProvider):
+    PROVIDER = 'ALBUM'
+    TYPE = 'APPLE'
+    URL = 'https://rss.itunes.apple.com/api/v1/us/apple-music/coming-soon/all/100/explicit.json'
+
+    def __init__(self, conn):
+        super().__init__(conn, self.PROVIDER, self.TYPE)
+
+    def _extract_from_api(self):
+        url = self.URL
         page_num = 1
 
-        self.get_response(url, page_num)
+        self._load_staging(url, page_num)
 
-        self.conn.update_recent_requests(self.table_stage, self.name)
-
-    def get_response(self, url, page):
+    def _load_staging(self, url, page):
         req = requests.get(url)
 
         res_json = req.json()
 
-        sql = f'''
-                INSERT	INTO {self.table_stage}
-                            (
-                                REQUEST_PROVIDER
-                                ,REQUEST_ENDPOINT
-                                ,REQUEST_RESPONSE
-                                ,META_PAGE_NUMBER
-                                ,META_JOB_SUMMARY_SK
-                            )
-                SELECT	'{self.name}'
-                        ,'{url}'
-                        ,PARSE_JSON($${req.text}$$)
-                        ,{page}
-                        ,{self.conn.job_id};'''
+        sql = self.create_insert_query(url, req.text, page)
 
-        self.conn.cur.execute(sql)
+        self._dao.cursor.execute(sql)
 
         return res_json
 
-    def transform_upcoming(self):
+    def transform(self):
         # TODO: handle soft deletes?
-        self.conn.cur.execute(f'''
-            MERGE   INTO    {self.table_model} AS TARGET
+        self._dao.cursor.execute(f'''
+            MERGE   INTO    {self._target_table} AS TARGET
                     USING   (
                                 SELECT
                                         VALUE:"artistId" ARTIST_ID
@@ -58,10 +46,10 @@ class Apple:
                                         ,VALUE:"releaseDate"::TIMESTAMP_NTZ RELEASE_DATE
                                         ,VALUE:"url" URL
                                         ,T.META_JOB_SUMMARY_SK
-                                FROM    {self.table_stage} T
+                                FROM    {self._table_stage} T
                                         ,LATERAL FLATTEN (INPUT => REQUEST_RESPONSE:"feed"."results")
                                 WHERE   META_CURRENT_INDICATOR = TRUE
-                                        AND REQUEST_PROVIDER = '{self.name}'
+                                        AND REQUEST_PROVIDER = '{self._media_provider}'
                             )   SOURCE
                             ON  TARGET.ALBUM_ID = SOURCE.ID
 
@@ -125,11 +113,6 @@ class Apple:
                                 ,SOURCE.RELEASE_DATE
                                 ,SOURCE.URL
                                 ,SOURCE.META_JOB_SUMMARY_SK
-                                ,{self.conn.job_id}
+                                ,{self._dao.job_id}
                             )
         ''')
-
-    def __init__(self, conn):
-        self.conn = conn
-        self.table_stage = conn.tbl_stg
-        self.table_model = '.'.join([conn.db, 'MODEL', self.type])

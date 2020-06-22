@@ -1,65 +1,56 @@
-from app_elt import shared
 import requests
 
+from digital_drops.media.media import MediaProvider
 
-class TMDB:
-    name = 'TMDB'
-    type = 'FILM'
-    conn = None
-    api_key = None
-    table_stage = None
-    table_model = None
 
-    def extract_load_upcoming(self):
+class Tmdb(MediaProvider):
+    PROVIDER = 'TMDB'
+    TYPE = 'FILM'
+    URL = 'https://api.themoviedb.org/3/movie/upcoming'
+
+    def __init__(self, conn):
+        super().__init__(conn, self.PROVIDER, self.TYPE)
+
+    def _extract_from_api(self):
         params = ['language=EN', 'region=US']
-        url = f'''https://api.themoviedb.org/3/movie/upcoming?{'&'.join(params)}'''
+        url = f'''{self.URL}?{'&'.join(params)}'''
         page_num = 1
 
-        res_json = self.get_response(url, page_num)
+        res_json = self._load_staging(url, page_num)
 
-        page_max = int(res_json['total_pages'])
-
+        page_max = self._get_page_from_response(res_json)
         if page_max > 1:
-
-            while page_num < page_max:
+            while page_num <= page_max:
                 page_num += 1
-                self.get_response(url, page_num)
+                res = self._load_staging(url, page_num)
+                page_max = self._get_page_from_response(res)
 
-        self.conn.update_recent_requests(self.table_stage, self.name)
+    @staticmethod
+    def _get_page_from_response(json) -> int:
+        return int(json['total_pages'])
 
-    def get_response(self, url, page):
+    def _load_staging(self, url: str, page: int):
         req_no_key = f'''{url}&page={str(page)}&api_key='''
 
-        req = requests.get(req_no_key + self.api_key)
+        req = requests.get(req_no_key + self._api_key)
 
         res_json = req.json()
 
         if not res_json['results']:
             raise Exception(res_json['status_message'])
 
-        sql = f'''
-                INSERT	INTO {self.table_stage}
-                            (
-                                REQUEST_PROVIDER
-                                ,REQUEST_ENDPOINT
-                                ,REQUEST_RESPONSE
-                                ,META_PAGE_NUMBER
-                                ,META_JOB_SUMMARY_SK
-                            )
-                SELECT	'{self.name}'
-                        ,'{url}'
-                        ,PARSE_JSON($${req.text}$$)
-                        ,{page}
-                        ,{self.conn.job_id};'''
+        sql = self.create_insert_query(url, req.text, page)
 
-        self.conn.cur.execute(sql)
+        print(sql)
+
+        self._dao.cursor.execute(sql)
 
         return res_json
 
-    def transform_upcoming(self):
+    def transform(self):
         # TODO: handle soft deletes?
-        self.conn.cur.execute(f'''
-            MERGE   INTO    {self.table_model} AS TARGET
+        self._dao.cursor.execute(f'''
+            MERGE   INTO    {self._target_table} AS TARGET
                     USING   (
                                 SELECT
                                         VALUE:"adult"::BOOLEAN ADULT
@@ -77,10 +68,10 @@ class TMDB:
                                         ,VALUE:"vote_average"::NUMBER(38,3) VOTE_AVERAGE
                                         ,VALUE:"vote_count"::NUMBER(38,0) VOTE_COUNT
                                         ,T.META_JOB_SUMMARY_SK
-                                FROM    {self.table_stage} T
+                                FROM    {self._dao.staging_table} T
                                         ,LATERAL FLATTEN (INPUT => REQUEST_RESPONSE:"results")
                                 WHERE   META_CURRENT_INDICATOR = TRUE
-                                        AND REQUEST_PROVIDER = '{self.name}'
+                                        AND REQUEST_PROVIDER = '{self._media_provider}'
                             )   SOURCE
                             ON  TARGET.FILM_ID = SOURCE.ID
             
@@ -154,12 +145,6 @@ class TMDB:
                                 ,SOURCE.VOTE_AVERAGE
                                 ,SOURCE.VOTE_COUNT
                                 ,SOURCE.META_JOB_SUMMARY_SK
-                                ,{self.conn.job_id}
+                                ,{self._dao.job_id}
                             )
         ''')
-
-    def __init__(self, conn):
-        self.api_key = shared.get_connection_keys(f'''key_api_{self.type}_{self.name}'''.lower())
-        self.conn = conn
-        self.table_stage = conn.tbl_stg
-        self.table_model = '.'.join([conn.db, 'MODEL', self.type])
