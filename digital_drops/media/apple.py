@@ -4,8 +4,8 @@ from digital_drops.media.media import MediaProvider
 
 
 class Apple(MediaProvider):
-    PROVIDER = 'ALBUM'
-    TYPE = 'APPLE'
+    PROVIDER = 'APPLE'
+    TYPE = 'ALBUM'
     URL = 'https://rss.itunes.apple.com/api/v1/us/apple-music/coming-soon/all/100/explicit.json'
 
     def __init__(self, conn):
@@ -28,7 +28,7 @@ class Apple(MediaProvider):
 
         return res_json
 
-    def transform(self):
+    def _transform(self):
         # TODO: handle soft deletes?
         self._dao.cursor.execute(f'''
             MERGE   INTO    {self._target_table} AS TARGET
@@ -46,7 +46,7 @@ class Apple(MediaProvider):
                                         ,VALUE:"releaseDate"::TIMESTAMP_NTZ RELEASE_DATE
                                         ,VALUE:"url" URL
                                         ,T.META_JOB_SUMMARY_SK
-                                FROM    {self._table_stage} T
+                                FROM    {self._dao.staging_table} T
                                         ,LATERAL FLATTEN (INPUT => REQUEST_RESPONSE:"feed"."results")
                                 WHERE   META_CURRENT_INDICATOR = TRUE
                                         AND REQUEST_PROVIDER = '{self._media_provider}'

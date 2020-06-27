@@ -4,6 +4,8 @@ from digital_drops import util
 from digital_drops.constants import SQL
 from digital_drops.dao import SnowflakeDao
 
+import logging
+
 
 class MediaProvider(object):
     def __init__(self, dao: SnowflakeDao, media_provider: str, media_type: str):
@@ -20,8 +22,10 @@ class MediaProvider(object):
                                  response_page=response_page, job_id=self._dao.job_id)
 
     def extract_load(self):
+        print(f'''Starting extract/load from {self._media_provider}''')
         self._extract_from_api()
         self._dao.update_recent_requests(self._media_provider)
+        print(f'''Finished extract/load from {self._media_provider}''')
 
     @abstractmethod
     def _extract_from_api(self):
@@ -32,5 +36,10 @@ class MediaProvider(object):
         pass
 
     @abstractmethod
-    def transform(self):
+    def _transform(self):
         pass
+
+    def transform(self):
+        print(f'''Starting transform of {self._media_provider}''')
+        self._transform()
+        print(f'''Completed transform of {self._media_provider}''')

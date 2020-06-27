@@ -1,3 +1,5 @@
+import logging
+
 import requests
 
 from digital_drops.media.media import MediaProvider
@@ -47,7 +49,7 @@ class Tmdb(MediaProvider):
 
         return res_json
 
-    def transform(self):
+    def _transform(self):
         # TODO: handle soft deletes?
         self._dao.cursor.execute(f'''
             MERGE   INTO    {self._target_table} AS TARGET

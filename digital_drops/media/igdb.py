@@ -50,7 +50,7 @@ class Igdb(MediaProvider):
 
         return True
 
-    def transform(self):
+    def _transform(self):
         # TODO: handle soft deletes?
         self._dao.cursor.execute(f'''
             MERGE   INTO    {self._target_table} AS TARGET

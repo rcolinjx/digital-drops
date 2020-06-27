@@ -31,7 +31,7 @@ class SnowflakeDao(object):
 
         return self.cursor.fetchone()[0]
 
-    def update_recent_requests(self, provider):
+    def update_recent_requests(self, provider: str):
         self.cursor.execute('BEGIN;')
         self.cursor.execute(f'''
             UPDATE  {self.staging_table}

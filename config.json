@@ -1,7 +1,7 @@
 {
   "key_api_film_tmdb": "05f21bc5de58350cbda2d7b49a13336a",
   "key_api_game_igdb": "ac02b6b5f145f742402c0cd09ce4c7e2",
-  "key_api_song_spotify": "703ea29307d148989a37fe82683cdbbc",
+  "key_api_album_apple": "703ea29307d148989a37fe82683cdbbc",
   "database_connection": {
     "user": "API",
     "password": "T4bbAoEi*vf!CpVEEf.x",
