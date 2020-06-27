@@ -1,5 +1,3 @@
-import logging
-
 import requests
 
 from digital_drops.media.media import MediaProvider

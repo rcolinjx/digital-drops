@@ -4,8 +4,6 @@ from digital_drops import util
 from digital_drops.constants import SQL
 from digital_drops.dao import SnowflakeDao
 
-import logging
-
 
 class MediaProvider(object):
     def __init__(self, dao: SnowflakeDao, media_provider: str, media_type: str):

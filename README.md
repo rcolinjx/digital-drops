@@ -2,4 +2,3 @@
 
 ## TODO
 - dynamic MERGE
-- IGDB API

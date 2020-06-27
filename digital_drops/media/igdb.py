@@ -25,30 +25,28 @@ class Igdb(MediaProvider):
         # TODO: debug results
         while res_continue:
             body = f'''
-				fields *;
-				where first_release_date > {epoch_ms};
-				sort date asc;
-				offset {offset * limit};
-				limit {limit};'''
+                fields *;
+                where first_release_date > {epoch_ms};
+                sort date asc;
+                offset {offset * limit};
+                limit {limit};'''
 
             res_continue = self._load_staging(url, header, body, page_num)
 
             page_num += 1
             offset += 1
 
-    def _load_staging(self, url, header, body, page):
+    def _load_staging(self, url: str, header: dict, body: str, page: int):
         req = requests.post(url, data=body, headers=header)
 
         res_json = req.json()
 
         if "cause" in res_json[0]:
-            return False
+            raise Exception(body)
 
         sql = self.create_insert_query(url, req.text, page)
 
         self._dao.cursor.execute(sql)
-
-        return True
 
     def _transform(self):
         # TODO: handle soft deletes?
