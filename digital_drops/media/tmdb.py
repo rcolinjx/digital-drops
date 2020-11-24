@@ -51,7 +51,7 @@ class Tmdb(MediaProvider):
         self._dao.cursor.execute(f'''
             MERGE   INTO    {self._target_table} AS TARGET
                     USING   (
-                                SELECT
+                                SELECT  DISTINCT
                                         VALUE:"adult"::BOOLEAN ADULT
                                         ,VALUE:"backdrop_path" BACKDROP_PATH
                                         ,VALUE:"genre_ids"::ARRAY GENRE_IDS
