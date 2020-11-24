@@ -21,9 +21,8 @@ class Tmdb(MediaProvider):
         page_max = self._get_page_from_response(res_json)
         if page_max > 1:
             while page_num <= page_max:
+                self._load_staging(url, page_num)
                 page_num += 1
-                res = self._load_staging(url, page_num)
-                page_max = self._get_page_from_response(res)
 
     @staticmethod
     def _get_page_from_response(json) -> int:
